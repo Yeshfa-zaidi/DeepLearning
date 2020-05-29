@@ -1,0 +1,93 @@
+%%
+clear;
+
+path='........Cancer\Training'
+
+imds=imageDatastore(path,...
+    'IncludeSubfolders',true,'FileExtensions','.jpg',...
+    'LabelSource','foldernames');
+
+
+[imdsTrain,imdsValidation,imdsTest] = splitEachLabel(imds,0.8,0.2);
+% get the number of classes
+numClasses = numel(categories(imdsTrain.Labels));
+
+%get the layers
+inputSize=[227 227 3];
+
+layers = [
+    imageInputLayer(inputSize)
+    
+    convolution2dLayer([3 3],30)
+    leakyReluLayer
+    maxPooling2dLayer([5 5])
+    
+    convolution2dLayer([3 3],50)
+    leakyReluLayer
+    maxPooling2dLayer([5 5])
+    
+    convolution2dLayer([3 3],20)
+    leakyReluLayer
+    maxPooling2dLayer([5 5])
+    
+    convolution2dLayer([3 3],60)
+    leakyReluLayer
+    maxPooling2dLayer([5 5])
+    
+    
+    fullyConnectedLayer(64)    
+    fullyConnectedLayer(8) 
+    softmaxLayer
+    classificationLayer];
+
+
+min_batchsize=64;
+
+valid_freq=floor(size(imdsTrain.Files,1)/min_batchsize); 
+options = trainingOptions('adam', ...
+    'Plot','training-progress',...
+    'Shuffle','every-epoch',... 
+    'MiniBatchSize',min_batchsize,...
+    'MaxEpochs',100 , ...
+    'InitialLearnRate',1e-4,...
+    'ValidationData',imdsValidation, ...
+    'ValidationFrequency',10, ...
+    'ValidationPatience',Inf, ...
+    'Verbose',true,...
+    'ValidationPatience' ,30,...%,...
+     'CheckpointPath','...\Checkpoint matlab\',...
+     'Shuffle','every-epoch'); 
+
+%train 
+
+[net,info]=trainNetwork(imdsTrain,layers,options);
+
+
+
+%%Accuracy calculate 
+
+testLabel=imdsTest.Labels;
+[predictLabel,scores]=classify(net,imdsTest);
+
+accuracy = sum(predictLabel ==testLabel )/numel(testLabel);
+
+%%
+
+
+confmat=confusionmat(predictLabel,testLabel)
+
+plotconfusion(targets,outputs)
+
+
+accuracy = sum(predictLabel ==testLabel )/numel(testLabel)
+%%
+targets=toTargets(testLabel);
+
+outputs=scores';
+
+
+plotroc(targets,outputs);
+hold on
+xlabel('False Positive Rate')
+ylabel('True Positive Rate')
+
